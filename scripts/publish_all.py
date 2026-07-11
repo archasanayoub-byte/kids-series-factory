@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""
+publish_all.py
+---------------
+Batch runner used by the GitHub Actions workflow.
+
+Scans a "drop folder" (default: videos/to_upload/) for video files that each
+have a matching JSON metadata sidecar (same filename, .json extension),
+uploads every one that hasn't been uploaded before, and keeps a manifest
+(uploaded_manifest.json) so re-runs never double-publish the same file.
+
+Folder layout expected:
+    videos/to_upload/ep01.mp4
+    videos/to_upload/ep01.json      <- title/description/tags/etc (see youtube_upload.py)
+    videos/to_upload/ep01_thumb.jpg <- optional, referenced from ep01.json as "thumbnail": "ep01_thumb.jpg"
+
+After a successful upload:
+    - the video + thumbnail are deleted (keeps the git repo light -- video
+      binaries don't belong in git long-term)
+    - the metadata JSON is moved to videos/uploaded/ for a paper trail
+    - the video's id/url/timestamp is recorded in uploaded_manifest.json
+
+The GitHub Actions workflow commits the manifest + videos/uploaded/ changes
+back to the repo after this script runs.
+"""
+
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+
+# Reuse the single-video upload logic instead of shelling out.
+sys.path.insert(0, str(Path(__file__).parent))
+from youtube_upload import load_credentials, upload_video, set_thumbnail, add_to_playlist  # noqa: E402
+
+DROP_DIR = Path("videos/to_upload")
+UPLOADED_DIR = Path("videos/uploaded")
+MANIFEST_PATH = Path("uploaded_manifest.json")
+
+
+class Args:
+    """Small shim so we can reuse upload_video()/set_thumbnail() which expect an argparse.Namespace."""
+
+    def __init__(self, file, meta):
+        self.file = str(file)
+        self.title = meta.get("title") or file.stem
+        self.description = meta.get("description", "")
+        self.tags = ",".join(meta.get("tags", []))
+        self.category_id = meta.get("category_id", "1")
+        self.privacy = meta.get("privacy_status", "unlisted")
+        self.made_for_kids = bool(meta.get("made_for_kids", False))
+        self.thumbnail = meta.get("thumbnail")
+
+
+def load_manifest() -> dict:
+    if MANIFEST_PATH.exists():
+        return json.loads(MANIFEST_PATH.read_text())
+    return {}
+
+
+def save_manifest(manifest: dict):
+    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2, sort_keys=True))
+
+
+def main():
+    if not DROP_DIR.exists():
+        print(f"No drop folder at {DROP_DIR}, nothing to do.")
+        return
+
+    UPLOADED_DIR.mkdir(parents=True, exist_ok=True)
+    manifest = load_manifest()
+
+    video_files = sorted(
+        p for p in DROP_DIR.iterdir() if p.suffix.lower() in (".mp4", ".mov", ".mkv", ".webm")
+    )
+
+    if not video_files:
+        print(f"No video files found in {DROP_DIR}.")
+        return
+
+    creds = load_credentials(None)  # reads YOUTUBE_TOKEN_JSON from env in CI
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+    youtube = build("youtube", "v3", credentials=creds)
+
+    uploaded_count = 0
+    failed = []
+
+    for video_path in video_files:
+        key = video_path.name
+        if key in manifest:
+            print(f"Skipping {key} (already uploaded: {manifest[key]['url']})")
+            continue
+
+        meta_path = video_path.with_suffix(".json")
+        if not meta_path.exists():
+            print(f"WARNING: no metadata file for {video_path.name} (expected {meta_path.name}), skipping.")
+            failed.append(key)
+            continue
+
+        meta = json.loads(meta_path.read_text())
+        args = Args(video_path, meta)
+
+        # Resolve thumbnail path relative to the drop folder.
+        thumb_path = None
+        if args.thumbnail:
+            candidate = video_path.parent / args.thumbnail
+            thumb_path = str(candidate) if candidate.exists() else None
+
+        print(f"\n=== Uploading {video_path.name} ===")
+        try:
+            video_id = upload_video(youtube, args)
+            if thumb_path:
+                set_thumbnail(youtube, video_id, thumb_path)
+            if meta.get("playlist_id"):
+                add_to_playlist(youtube, video_id, meta["playlist_id"])
+        except SystemExit:
+            print(f"FAILED to upload {video_path.name}")
+            failed.append(key)
+            continue
+
+        manifest[key] = {
+            "video_id": video_id,
+            "url": f"https://youtu.be/{video_id}",
+            "title": args.title,
+            "uploaded_at": datetime.now(timezone.utc).isoformat(),
+        }
+        save_manifest(manifest)  # save incrementally so a crash mid-batch doesn't lose progress
+        uploaded_count += 1
+
+        # Clean up: remove the video + thumbnail, archive the metadata.
+        video_path.unlink()
+        if thumb_path:
+            Path(thumb_path).unlink(missing_ok=True)
+        meta_path.rename(UPLOADED_DIR / meta_path.name)
+
+    print(f"\nDone. Uploaded {uploaded_count} video(s).")
+    if failed:
+        print(f"Failed/skipped (missing metadata or error): {failed}")
+        sys.exit(2)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,53 @@
+name: Publish videos to YouTube
+
+on:
+  # Runs automatically whenever new files land in videos/to_upload/
+  push:
+    branches: [main]
+    paths:
+      - "videos/to_upload/**"
+  # Also run on a schedule as a safety net (catches anything a push missed)
+  schedule:
+    - cron: "0 9 * * *"  # every day at 09:00 UTC
+  # Allows a manual "Run workflow" button in the Actions tab
+  workflow_dispatch: {}
+
+# Needed so the job can commit the manifest/cleanup changes back to the repo
+permissions:
+  contents: write
+
+concurrency:
+  group: youtube-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Upload pending videos to YouTube
+        env:
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBETOKENJSON }}
+        run: python scripts/publish_all.py
+
+      - name: Commit manifest and cleanup
+        run: |
+          git config user.name "youtube-publish-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add uploaded_manifest.json videos/uploaded videos/to_upload
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: publish videos to YouTube [skip ci]"
+            git push
+          else
+            echo "Nothing to commit."
+          fi
