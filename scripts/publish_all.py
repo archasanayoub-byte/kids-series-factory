@@ -5,9 +5,14 @@ publish_all.py
 Batch runner used by the GitHub Actions workflow.
 
 Scans a "drop folder" (default: videos/to_upload/) for video files that each
-have a matching JSON metadata sidecar (same filename, .json extension),
-uploads every one that hasn't been uploaded before, and keeps a manifest
-(uploaded_manifest.json) so re-runs never double-publish the same file.
+have a matching JSON metadata sidecar (same filename, .json extension), and
+uploads ONLY THE OLDEST ONE not yet uploaded, then stops. This is what lets
+the GitHub Actions schedule act as a drip-feed release queue: every time the
+workflow fires (e.g. 3x/day), exactly one episode goes out, oldest first.
+Keeps a manifest (uploaded_manifest.json) so re-runs never double-publish.
+
+Set PUBLISH_ALL=1 in the environment to instead upload every pending video
+in one run (useful for manual catch-up).
 
 Folder layout expected:
     videos/to_upload/ep01.mp4
@@ -25,6 +30,7 @@ back to the repo after this script runs.
 """
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -80,6 +86,16 @@ def main():
     if not video_files:
         print(f"No video files found in {DROP_DIR}.")
         return
+
+    # Drip-feed mode (default): only the single oldest not-yet-uploaded video
+    # is processed per run, so the schedule cadence in the workflow controls
+    # the release pace. Set PUBLISH_ALL=1 to process everything in one go.
+    if os.environ.get("PUBLISH_ALL") != "1":
+        pending = [p for p in video_files if p.name not in manifest]
+        video_files = pending[:1]
+        if not video_files:
+            print("No pending videos to publish (everything already uploaded).")
+            return
 
     creds = load_credentials(None)  # reads YOUTUBE_TOKEN_JSON from env in CI
     if creds.expired and creds.refresh_token:
