@@ -2,3 +2,4 @@ token.json
 client_secret_*.json
 __pycache__/
 *.pyc
+videos/to_upload/pending_downloads.json
