@@ -1,0 +1,117 @@
+{
+  "generated_at": "2026-07-13T20:06:37.561390+00:00",
+  "lookback_days": 90,
+  "episodes_analyzed": 4,
+  "best_character_mix": "unknown",
+  "character_mix_breakdown": {
+    "unknown": {
+      "episode_count": 4,
+      "average_views": 6.2,
+      "average_view_percentage": 54.0
+    }
+  },
+  "best_publish_weekday": "Saturday",
+  "weekday_breakdown": {
+    "Saturday": {
+      "episode_count": 4,
+      "average_views": 6.2
+    }
+  },
+  "top_video": {
+    "video_id": "qoY7BLCS4Lo",
+    "title": "بوبو وفستق - الحلقة الأولى",
+    "url": "https://youtu.be/qoY7BLCS4Lo",
+    "characters": [],
+    "views": 13.0,
+    "average_view_percentage": 35.67,
+    "subscribers_gained": 0.0,
+    "estimated_minutes_watched": 0.0,
+    "likes": 2.0,
+    "below_retention_target": true
+  },
+  "bottom_video": {
+    "video_id": "zAW_rYIbZtI",
+    "title": "بوبو وفستق - السمكة الكبيرة",
+    "url": "https://youtu.be/zAW_rYIbZtI",
+    "characters": [],
+    "views": 3.0,
+    "average_view_percentage": 42.5,
+    "subscribers_gained": 0.0,
+    "estimated_minutes_watched": 0.0,
+    "likes": 2.0,
+    "below_retention_target": true
+  },
+  "all_videos": [
+    {
+      "video_id": "qoY7BLCS4Lo",
+      "title": "بوبو وفستق - الحلقة الأولى",
+      "url": "https://youtu.be/qoY7BLCS4Lo",
+      "characters": [],
+      "views": 13.0,
+      "average_view_percentage": 35.67,
+      "subscribers_gained": 0.0,
+      "estimated_minutes_watched": 0.0,
+      "likes": 2.0,
+      "below_retention_target": true
+    },
+    {
+      "video_id": "czEEodBd2BY",
+      "title": "بوبو وفستق - المظلة الطائرة",
+      "url": "https://youtu.be/czEEodBd2BY",
+      "characters": [],
+      "views": 5.0,
+      "average_view_percentage": 48.81,
+      "subscribers_gained": 0.0,
+      "estimated_minutes_watched": 0.0,
+      "likes": 2.0,
+      "below_retention_target": true
+    },
+    {
+      "video_id": "-ghdVPsPgqU",
+      "title": "بوبو وفستق - فوضى البان كيك",
+      "url": "https://youtu.be/-ghdVPsPgqU",
+      "characters": [],
+      "views": 4.0,
+      "average_view_percentage": 88.87,
+      "subscribers_gained": 0.0,
+      "estimated_minutes_watched": 0.0,
+      "likes": 2.0,
+      "below_retention_target": false
+    },
+    {
+      "video_id": "zAW_rYIbZtI",
+      "title": "بوبو وفستق - السمكة الكبيرة",
+      "url": "https://youtu.be/zAW_rYIbZtI",
+      "characters": [],
+      "views": 3.0,
+      "average_view_percentage": 42.5,
+      "subscribers_gained": 0.0,
+      "estimated_minutes_watched": 0.0,
+      "likes": 2.0,
+      "below_retention_target": true
+    }
+  ],
+  "retention": {
+    "target_percentage": 65.0,
+    "average_percentage": 54.0,
+    "videos_below_target_count": 3,
+    "videos_below_target": [
+      {
+        "title": "بوبو وفستق - الحلقة الأولى",
+        "url": "https://youtu.be/qoY7BLCS4Lo",
+        "average_view_percentage": 35.67
+      },
+      {
+        "title": "بوبو وفستق - المظلة الطائرة",
+        "url": "https://youtu.be/czEEodBd2BY",
+        "average_view_percentage": 48.81
+      },
+      {
+        "title": "بوبو وفستق - السمكة الكبيرة",
+        "url": "https://youtu.be/zAW_rYIbZtI",
+        "average_view_percentage": 42.5
+      }
+    ]
+  },
+  "notes": "Based on 4 published episode(s) with analytics data so far. Hour-of-day posting-time data is not available via the public YouTube Analytics API (only YouTube Studio's own Audience tab has that) -- only day-of-week patterns are analyzed here. Character-mix and weekday recommendations need at least 2 episodes per group to be meaningful; treat anything below that as too early to act on. Retention target (65.0%.) is an industry-reported 2026 benchmark for sub-30s Shorts distribution, not an official YouTube-published number -- treat it as directional."
+}
