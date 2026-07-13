@@ -27,6 +27,12 @@ After a successful upload:
 
 The GitHub Actions workflow commits the manifest + videos/uploaded/ changes
 back to the repo after this script runs.
+
+FIX (13 July 2026): the manifest entry was silently dropping the
+"characters" field from each episode's metadata, so growth_strategist.py /
+analyze_channel_performance.py could never correlate character mix with
+real performance -- every episode bucketed as "unknown". Now carried
+through from the metadata JSON into the manifest entry.
 """
 
 import json
@@ -143,6 +149,7 @@ def main():
             "url": f"https://youtu.be/{video_id}",
             "title": args.title,
             "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            "characters": meta.get("characters", []),
         }
         save_manifest(manifest)  # save incrementally so a crash mid-batch doesn't lose progress
         uploaded_count += 1
