@@ -1,0 +1,52 @@
+name: Analyze channel performance
+
+on:
+  # Weekly, Friday morning UTC -- lands before the Friday-noon Israel-time
+  # weekly report task, so that report can read fresh insights.
+  schedule:
+    - cron: "0 8 * * 5"
+  # Allows a manual "Run workflow" button in the Actions tab for testing.
+  workflow_dispatch: {}
+
+# Needed so the job can commit videos/performance_insights.json + growth_strategy.json back to the repo
+permissions:
+  contents: write
+
+concurrency:
+  group: youtube-analyze
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Analyze YouTube channel performance
+        env:
+          YOUTUBE_TOKEN_JSON: ${{ secrets.YOUTUBETOKENJSON }}
+        run: python scripts/analyze_channel_performance.py --days 90
+
+      - name: Run growth strategist
+        run: python scripts/growth_strategist.py
+
+      - name: Commit updated insights
+        run: |
+          git config user.name "youtube-analyze-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add videos/performance_insights.json videos/growth_strategy.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: update channel performance insights + growth strategy [skip ci]"
+            git push
+          else
+            echo "Nothing to commit."
+          fi
