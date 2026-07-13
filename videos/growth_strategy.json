@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-13T20:06:37.638045+00:00",
+  "generated_at": "2026-07-13T20:29:53.627739+00:00",
   "retention_summary": {
     "target_percentage": 65.0,
     "average_percentage": 54.0,
@@ -23,7 +23,7 @@
     ]
   },
   "character_mix_summary": {
-    "unknown": {
+    "bobo+festuk": {
       "episode_count": 4,
       "average_views": 6.2,
       "average_view_percentage": 54.0
@@ -154,7 +154,7 @@
     {
       "priority": 3,
       "area": "تركيبة الشخصيات",
-      "action": "تركيبة \"unknown\" هي الأعلى أداءً لحد الآن (بيانات حقيقية) -- رجّح هالتركيبة بالحلقات الجاية بدون ما تكسر تسلسل القصة."
+      "action": "تركيبة \"bobo+festuk\" هي الأعلى أداءً لحد الآن (بيانات حقيقية) -- رجّح هالتركيبة بالحلقات الجاية بدون ما تكسر تسلسل القصة."
     },
     {
       "priority": 4,

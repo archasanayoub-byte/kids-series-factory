@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-07-13T20:06:37.561390+00:00",
+  "generated_at": "2026-07-13T20:29:53.561988+00:00",
   "lookback_days": 90,
   "episodes_analyzed": 4,
-  "best_character_mix": "unknown",
+  "best_character_mix": "bobo+festuk",
   "character_mix_breakdown": {
-    "unknown": {
+    "bobo+festuk": {
       "episode_count": 4,
       "average_views": 6.2,
       "average_view_percentage": 54.0
@@ -21,7 +21,10 @@
     "video_id": "qoY7BLCS4Lo",
     "title": "بوبو وفستق - الحلقة الأولى",
     "url": "https://youtu.be/qoY7BLCS4Lo",
-    "characters": [],
+    "characters": [
+      "bobo",
+      "festuk"
+    ],
     "views": 13.0,
     "average_view_percentage": 35.67,
     "subscribers_gained": 0.0,
@@ -33,7 +36,10 @@
     "video_id": "zAW_rYIbZtI",
     "title": "بوبو وفستق - السمكة الكبيرة",
     "url": "https://youtu.be/zAW_rYIbZtI",
-    "characters": [],
+    "characters": [
+      "bobo",
+      "festuk"
+    ],
     "views": 3.0,
     "average_view_percentage": 42.5,
     "subscribers_gained": 0.0,
@@ -46,7 +52,10 @@
       "video_id": "qoY7BLCS4Lo",
       "title": "بوبو وفستق - الحلقة الأولى",
       "url": "https://youtu.be/qoY7BLCS4Lo",
-      "characters": [],
+      "characters": [
+        "bobo",
+        "festuk"
+      ],
       "views": 13.0,
       "average_view_percentage": 35.67,
       "subscribers_gained": 0.0,
@@ -58,7 +67,10 @@
       "video_id": "czEEodBd2BY",
       "title": "بوبو وفستق - المظلة الطائرة",
       "url": "https://youtu.be/czEEodBd2BY",
-      "characters": [],
+      "characters": [
+        "bobo",
+        "festuk"
+      ],
       "views": 5.0,
       "average_view_percentage": 48.81,
       "subscribers_gained": 0.0,
@@ -70,7 +82,10 @@
       "video_id": "-ghdVPsPgqU",
       "title": "بوبو وفستق - فوضى البان كيك",
       "url": "https://youtu.be/-ghdVPsPgqU",
-      "characters": [],
+      "characters": [
+        "bobo",
+        "festuk"
+      ],
       "views": 4.0,
       "average_view_percentage": 88.87,
       "subscribers_gained": 0.0,
@@ -82,7 +97,10 @@
       "video_id": "zAW_rYIbZtI",
       "title": "بوبو وفستق - السمكة الكبيرة",
       "url": "https://youtu.be/zAW_rYIbZtI",
-      "characters": [],
+      "characters": [
+        "bobo",
+        "festuk"
+      ],
       "views": 3.0,
       "average_view_percentage": 42.5,
       "subscribers_gained": 0.0,
