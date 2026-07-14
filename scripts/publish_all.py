@@ -19,6 +19,11 @@ Folder layout expected:
     videos/to_upload/ep01.json      <- title/description/tags/etc (see youtube_upload.py)
     videos/to_upload/ep01_thumb.jpg <- optional, referenced from ep01.json as "thumbnail": "ep01_thumb.jpg"
 
+Before upload, a "subscribe to the channel" banner (assets/subscribe_overlay.png)
+is burned into the video from second 7 onward, so every published episode
+carries the same subscribe nudge. If ffmpeg or the overlay asset is missing,
+the video is published as-is rather than blocking the run.
+
 After a successful upload:
     - the video + thumbnail are deleted (keeps the git repo light -- video
       binaries don't belong in git long-term)
@@ -27,16 +32,12 @@ After a successful upload:
 
 The GitHub Actions workflow commits the manifest + videos/uploaded/ changes
 back to the repo after this script runs.
-
-FIX (13 July 2026): the manifest entry was silently dropping the
-"characters" field from each episode's metadata, so growth_strategist.py /
-analyze_channel_performance.py could never correlate character mix with
-real performance -- every episode bucketed as "unknown". Now carried
-through from the metadata JSON into the manifest entry.
 """
 
 import json
 import os
+import shutil
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,20 +52,51 @@ from youtube_upload import load_credentials, upload_video, set_thumbnail, add_to
 DROP_DIR = Path("videos/to_upload")
 UPLOADED_DIR = Path("videos/uploaded")
 MANIFEST_PATH = Path("uploaded_manifest.json")
+OVERLAY_PATH = Path("assets/subscribe_overlay.png")
 
 
 class Args:
     """Small shim so we can reuse upload_video()/set_thumbnail() which expect an argparse.Namespace."""
 
-    def __init__(self, file, meta):
+    def __init__(self, file, meta, title_fallback=None):
         self.file = str(file)
-        self.title = meta.get("title") or file.stem
+        self.title = meta.get("title") or title_fallback or file.stem
         self.description = meta.get("description", "")
         self.tags = ",".join(meta.get("tags", []))
         self.category_id = meta.get("category_id", "1")
         self.privacy = meta.get("privacy_status", "unlisted")
         self.made_for_kids = bool(meta.get("made_for_kids", False))
         self.thumbnail = meta.get("thumbnail")
+
+
+def add_subscribe_overlay(video_path: Path) -> Path:
+    """Burn the subscribe-nudge banner into the video, appearing from second 7
+    onward. Returns the path to the overlaid copy, or the original path
+    unchanged if ffmpeg / the overlay asset aren't available (never blocks
+    publishing)."""
+    if not OVERLAY_PATH.exists():
+        print(f"No overlay asset at {OVERLAY_PATH}, publishing without it.")
+        return video_path
+    if shutil.which("ffmpeg") is None:
+        print("ffmpeg not found on PATH, publishing without overlay.")
+        return video_path
+
+    out_path = video_path.with_name(video_path.stem + "_ov" + video_path.suffix)
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(video_path),
+        "-i", str(OVERLAY_PATH),
+        "-filter_complex", "[0:v][1:v] overlay=0:0:enable='gte(t,7)'",
+        "-c:a", "copy",
+        str(out_path),
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        stderr_tail = e.stderr[-500:] if e.stderr else e
+        print(f"ffmpeg overlay failed ({stderr_tail}), publishing without overlay.")
+        return video_path
+    return out_path
 
 
 def load_manifest() -> dict:
@@ -124,7 +156,9 @@ def main():
             continue
 
         meta = json.loads(meta_path.read_text())
-        args = Args(video_path, meta)
+
+        upload_path = add_subscribe_overlay(video_path)
+        args = Args(upload_path, meta, title_fallback=video_path.stem)
 
         # Resolve thumbnail path relative to the drop folder.
         thumb_path = None
@@ -142,6 +176,8 @@ def main():
         except SystemExit:
             print(f"FAILED to upload {video_path.name}")
             failed.append(key)
+            if upload_path != video_path:
+                upload_path.unlink(missing_ok=True)
             continue
 
         manifest[key] = {
@@ -149,13 +185,14 @@ def main():
             "url": f"https://youtu.be/{video_id}",
             "title": args.title,
             "uploaded_at": datetime.now(timezone.utc).isoformat(),
-            "characters": meta.get("characters", []),
         }
         save_manifest(manifest)  # save incrementally so a crash mid-batch doesn't lose progress
         uploaded_count += 1
 
-        # Clean up: remove the video + thumbnail, archive the metadata.
+        # Clean up: remove the video + thumbnail + temp overlay copy, archive the metadata.
         video_path.unlink()
+        if upload_path != video_path:
+            upload_path.unlink(missing_ok=True)
         if thumb_path:
             Path(thumb_path).unlink(missing_ok=True)
         meta_path.rename(UPLOADED_DIR / meta_path.name)
