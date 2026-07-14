@@ -185,6 +185,7 @@ def main():
             "url": f"https://youtu.be/{video_id}",
             "title": args.title,
             "uploaded_at": datetime.now(timezone.utc).isoformat(),
+            "characters": meta.get("characters", []),
         }
         save_manifest(manifest)  # save incrementally so a crash mid-batch doesn't lose progress
         uploaded_count += 1
