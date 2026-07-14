@@ -19,10 +19,15 @@ Folder layout expected:
     videos/to_upload/ep01.json      <- title/description/tags/etc (see youtube_upload.py)
     videos/to_upload/ep01_thumb.jpg <- optional, referenced from ep01.json as "thumbnail": "ep01_thumb.jpg"
 
-Before upload, a "subscribe to the channel" banner (assets/subscribe_overlay.png)
-is burned into the video from second 7 onward, so every published episode
-carries the same subscribe nudge. If ffmpeg or the overlay asset is missing,
-the video is published as-is rather than blocking the run.
+Before upload, two ffmpeg passes are applied (each fails gracefully -- if
+ffmpeg or the relevant asset is missing, the video is published as-is rather
+than blocking the run):
+  1. add_subscribe_overlay -- burns a "subscribe to the channel" banner
+     (assets/subscribe_overlay.png) into the video from second 7 onward.
+  2. add_theme_music -- mixes the channel's theme track
+     (assets/theme_music.mp3) under the video's existing native audio at
+     reduced volume (25%), looped/trimmed to match the episode's length, so
+     every published episode carries the same audio signature.
 
 After a successful upload:
     - the video + thumbnail are deleted (keeps the git repo light -- video
@@ -53,6 +58,7 @@ DROP_DIR = Path("videos/to_upload")
 UPLOADED_DIR = Path("videos/uploaded")
 MANIFEST_PATH = Path("uploaded_manifest.json")
 OVERLAY_PATH = Path("assets/subscribe_overlay.png")
+MUSIC_PATH = Path("assets/theme_music.mp3")
 
 
 class Args:
@@ -95,6 +101,41 @@ def add_subscribe_overlay(video_path: Path) -> Path:
     except subprocess.CalledProcessError as e:
         stderr_tail = e.stderr[-500:] if e.stderr else e
         print(f"ffmpeg overlay failed ({stderr_tail}), publishing without overlay.")
+        return video_path
+    return out_path
+
+
+def add_theme_music(video_path: Path) -> Path:
+    """Mix the channel's theme music (assets/theme_music.mp3) under the
+    video's existing native audio at reduced volume, looped and trimmed to
+    match the video's length. Returns the path to the mixed copy, or the
+    original path unchanged if ffmpeg / the music asset aren't available
+    (never blocks publishing)."""
+    if not MUSIC_PATH.exists():
+        print(f"No theme music at {MUSIC_PATH}, publishing without it.")
+        return video_path
+    if shutil.which("ffmpeg") is None:
+        print("ffmpeg not found on PATH, publishing without theme music.")
+        return video_path
+
+    out_path = video_path.with_name(video_path.stem + "_mus" + video_path.suffix)
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(video_path),
+        "-stream_loop", "-1", "-i", str(MUSIC_PATH),
+        "-filter_complex",
+        "[1:a]volume=0.25[music];"
+        "[0:a][music]amix=inputs=2:duration=first:dropout_transition=2[aout]",
+        "-map", "0:v", "-map", "[aout]",
+        "-c:v", "copy",
+        "-shortest",
+        str(out_path),
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        stderr_tail = e.stderr[-500:] if e.stderr else e
+        print(f"ffmpeg theme-music mix failed ({stderr_tail}), publishing without it.")
         return video_path
     return out_path
 
@@ -157,7 +198,12 @@ def main():
 
         meta = json.loads(meta_path.read_text())
 
-        upload_path = add_subscribe_overlay(video_path)
+        # Apply overlay then theme music, in two ffmpeg passes; each is a
+        # no-op fallback to its input path if the asset/ffmpeg isn't available.
+        overlay_path = add_subscribe_overlay(video_path)
+        upload_path = add_theme_music(overlay_path)
+        temp_paths = [p for p in (overlay_path, upload_path) if p != video_path]
+
         args = Args(upload_path, meta, title_fallback=video_path.stem)
 
         # Resolve thumbnail path relative to the drop folder.
@@ -176,8 +222,8 @@ def main():
         except SystemExit:
             print(f"FAILED to upload {video_path.name}")
             failed.append(key)
-            if upload_path != video_path:
-                upload_path.unlink(missing_ok=True)
+            for p in temp_paths:
+                p.unlink(missing_ok=True)
             continue
 
         manifest[key] = {
@@ -190,10 +236,10 @@ def main():
         save_manifest(manifest)  # save incrementally so a crash mid-batch doesn't lose progress
         uploaded_count += 1
 
-        # Clean up: remove the video + thumbnail + temp overlay copy, archive the metadata.
+        # Clean up: remove the video + thumbnail + temp overlay/music copies, archive the metadata.
         video_path.unlink()
-        if upload_path != video_path:
-            upload_path.unlink(missing_ok=True)
+        for p in temp_paths:
+            p.unlink(missing_ok=True)
         if thumb_path:
             Path(thumb_path).unlink(missing_ok=True)
         meta_path.rename(UPLOADED_DIR / meta_path.name)
