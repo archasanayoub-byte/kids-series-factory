@@ -19,6 +19,16 @@ Folder layout expected:
     videos/to_upload/ep01.json      <- title/description/tags/etc (see youtube_upload.py)
     videos/to_upload/ep01_thumb.jpg <- optional, referenced from ep01.json as "thumbnail": "ep01_thumb.jpg"
 
+CLOUD-ONLY PIPELINE (added 16 July 2026): the episode-generator scheduled
+task cannot reach the Higgsfield CDN from its own sandbox, so it queues
+{"filename", "url"} pairs in videos/to_upload/pending_downloads.json instead
+of the raw video bytes. Before scanning DROP_DIR, fetch_pending_downloads()
+downloads every queued URL directly into DROP_DIR -- this runs inside the
+GitHub Actions runner, which has full, unrestricted internet access. This
+means publishing no longer depends on the user's own PC being on or running
+run_daily_publish.bat: generation (scheduled task) -> queue file (committed
+via repo) -> download + publish (GitHub Actions, fully cloud-side).
+
 Before upload, two ffmpeg passes are applied (each fails gracefully -- if
 ffmpeg or the relevant asset is missing, the video is published as-is rather
 than blocking the run):
@@ -35,8 +45,10 @@ After a successful upload:
     - the metadata JSON is moved to videos/uploaded/ for a paper trail
     - the video's id/url/timestamp is recorded in uploaded_manifest.json
 
-The GitHub Actions workflow commits the manifest + videos/uploaded/ changes
-back to the repo after this script runs.
+The GitHub Actions workflow commits the manifest + videos/uploaded/ +
+videos/to_upload/ changes back to the repo after this script runs (this
+already covers the drained pending_downloads.json queue and any newly
+downloaded video files, no workflow changes needed).
 """
 
 import json
@@ -44,6 +56,7 @@ import os
 import shutil
 import subprocess
 import sys
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -59,6 +72,7 @@ UPLOADED_DIR = Path("videos/uploaded")
 MANIFEST_PATH = Path("uploaded_manifest.json")
 OVERLAY_PATH = Path("assets/subscribe_overlay.png")
 MUSIC_PATH = Path("assets/theme_music.mp3")
+PENDING_DOWNLOADS_PATH = DROP_DIR / "pending_downloads.json"
 
 
 class Args:
@@ -73,6 +87,60 @@ class Args:
         self.privacy = meta.get("privacy_status", "unlisted")
         self.made_for_kids = bool(meta.get("made_for_kids", False))
         self.thumbnail = meta.get("thumbnail")
+
+
+def fetch_pending_downloads():
+    """Download any videos/thumbnails queued in pending_downloads.json.
+
+    The episode-generator scheduled task writes {"filename", "url"} pairs
+    here (pointing at Higgsfield CDN URLs) because its own sandbox can't
+    reach that CDN. This runner (GitHub Actions) CAN reach it, so this is
+    where the actual bytes get pulled down -- no local PC involved.
+
+    Successfully downloaded entries are removed from the queue file.
+    Entries that fail are left in place so the next scheduled run retries
+    them automatically.
+    """
+    if not PENDING_DOWNLOADS_PATH.exists():
+        return
+
+    try:
+        pending = json.loads(PENDING_DOWNLOADS_PATH.read_text())
+    except json.JSONDecodeError:
+        print(f"WARNING: {PENDING_DOWNLOADS_PATH} is not valid JSON, leaving it untouched.")
+        return
+
+    if not pending:
+        return
+
+    DROP_DIR.mkdir(parents=True, exist_ok=True)
+    remaining = []
+
+    for item in pending:
+        filename = item.get("filename")
+        url = item.get("url")
+        if not filename or not url:
+            print(f"WARNING: skipping malformed pending_downloads entry: {item}")
+            continue
+
+        dest = DROP_DIR / filename
+        if dest.exists():
+            print(f"{filename} already present in {DROP_DIR}, skipping download.")
+            continue
+
+        print(f"Downloading queued file {filename} ...")
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=180) as resp, open(dest, "wb") as f:
+                shutil.copyfileobj(resp, f)
+            print(f"Downloaded {filename} ({dest.stat().st_size} bytes).")
+        except Exception as e:
+            print(f"FAILED to download {filename}: {e}")
+            remaining.append(item)
+
+    PENDING_DOWNLOADS_PATH.write_text(json.dumps(remaining, indent=2))
+    if remaining:
+        print(f"{len(remaining)} queued download(s) still pending (will retry next run).")
 
 
 def add_subscribe_overlay(video_path: Path) -> Path:
@@ -151,6 +219,8 @@ def save_manifest(manifest: dict):
 
 
 def main():
+    fetch_pending_downloads()
+
     if not DROP_DIR.exists():
         print(f"No drop folder at {DROP_DIR}, nothing to do.")
         return
