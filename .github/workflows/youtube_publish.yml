@@ -1,17 +1,17 @@
 name: Publish videos to YouTube
 
 on:
-  # FORMAT CHANGE (15 July 2026): moved from daily to twice-weekly.
-  # Generation now happens Sun & Wed 21:00 Israel time (see the
-  # bobo-festuk-episode-generator scheduled task); this publish run fires
-  # the day after each generation night -- Monday and Thursday -- so the
-  # freshly generated episode has had time to be downloaded+pushed by the
-  # user's local run_daily_publish.bat tool first.
+  # FORMAT CHANGE (17 July 2026): moved from twice-weekly (Mon/Thu) to DAILY.
+  # Generation still happens only Sun & Wed 21:00 Israel time (bobo-festuk-episode-generator
+  # scheduled task), but each generation run now queues a 3-part STORY (Part 1/2/3) instead of
+  # a single episode. Running this publish job daily drains one part per day, spreading the
+  # 3 parts across separate days -- matching the competitor's near-daily release cadence and
+  # letting the Part 1/Part 2 cliffhangers actually land before the payoff airs in Part 3.
   #   14:00 UTC = 17:00 Israel time (summer/DST)
   # NOTE: Israel exits DST in late October; shift this by -1 hour in winter
   # if you want the same local release time (13:00 UTC).
   schedule:
-    - cron: "0 14 * * 1,4"
+    - cron: "0 14 * * *"
   # Allows a manual "Run workflow" button in the Actions tab (does NOT wait
   # for the schedule -- useful for testing or an extra manual release)
   workflow_dispatch: {}
