@@ -1,53 +1,44 @@
 {
-  "generated_at": "2026-07-13T20:29:53.627739+00:00",
+  "generated_at": "2026-07-17T09:58:52.791446+00:00",
   "retention_summary": {
     "target_percentage": 65.0,
-    "average_percentage": 54.0,
-    "videos_below_target_count": 3,
+    "average_percentage": 78.9,
+    "videos_below_target_count": 2,
     "videos_below_target": [
       {
         "title": "بوبو وفستق - الحلقة الأولى",
         "url": "https://youtu.be/qoY7BLCS4Lo",
-        "average_view_percentage": 35.67
+        "average_view_percentage": 50.84000000000001
       },
       {
-        "title": "بوبو وفستق - المظلة الطائرة",
-        "url": "https://youtu.be/czEEodBd2BY",
-        "average_view_percentage": 48.81
-      },
-      {
-        "title": "بوبو وفستق - السمكة الكبيرة",
-        "url": "https://youtu.be/zAW_rYIbZtI",
-        "average_view_percentage": 42.5
+        "title": "بوبو وفستق - البطيخة المتدحرجة",
+        "url": "https://youtu.be/70UEmDRcUaY",
+        "average_view_percentage": 63.81
       }
     ]
   },
   "character_mix_summary": {
     "bobo+festuk": {
-      "episode_count": 4,
-      "average_views": 6.2,
-      "average_view_percentage": 54.0
+      "episode_count": 6,
+      "average_views": 23.2,
+      "average_view_percentage": 78.9
     }
   },
   "weekday_summary": {
     "Saturday": {
       "episode_count": 4,
-      "average_views": 6.2
+      "average_views": 25.2
+    },
+    "Sunday": {
+      "episode_count": 1,
+      "average_views": 21.0
+    },
+    "Monday": {
+      "episode_count": 1,
+      "average_views": 17.0
     }
   },
   "metadata_audit": [
-    {
-      "file": "ep6.json",
-      "title": "بوبو وفستق وأرنوبة - تحدي الجسر المهتز",
-      "hashtag_count": 4,
-      "hashtags": [
-        "#بوبو_وفستق",
-        "#أرنوبة",
-        "#كرتون_اطفال",
-        "#Shorts"
-      ],
-      "issues": []
-    },
     {
       "file": "ep1.json",
       "title": "بوبو وفستق - الحلقة الأولى",
@@ -106,6 +97,18 @@
       "issues": []
     },
     {
+      "file": "ep6.json",
+      "title": "بوبو وفستق وأرنوبة - تحدي الجسر المهتز",
+      "hashtag_count": 4,
+      "hashtags": [
+        "#بوبو_وفستق",
+        "#أرنوبة",
+        "#كرتون_اطفال",
+        "#Shorts"
+      ],
+      "issues": []
+    },
+    {
       "file": "ep7.json",
       "title": "بوبو وفستق - الطائرة الورقية الهاربة",
       "hashtag_count": 3,
@@ -115,10 +118,25 @@
         "#Shorts"
       ],
       "issues": []
+    },
+    {
+      "file": "ep8.json",
+      "title": "بوبو أيقظ خلية النحل الغاضبة! 😱 هل ينجو هو وفستق؟",
+      "hashtag_count": 5,
+      "hashtags": [
+        "#بوبو_وفستق",
+        "#كرتون_اطفال",
+        "#قصص_اطفال",
+        "#مغامرات",
+        "#BoboAndFestuk"
+      ],
+      "issues": [
+        "ناقص هاشتاغ #Shorts بالوصف"
+      ]
     }
   ],
   "cross_post_coverage": {
-    "published_count": 7,
+    "published_count": 8,
     "social_ready_count": 0,
     "missing": [
       "ep1.mp4",
@@ -127,7 +145,8 @@
       "ep4.mp4",
       "ep5.mp4",
       "ep6.mp4",
-      "ep7.mp4"
+      "ep7.mp4",
+      "ep8.mp4"
     ],
     "note": "مجلد videos/social_ready/ مش موجود لسا -- يعني ولا حلقة واحدة انحضرت للنشر على تيك توك/انستغرام."
   },
@@ -138,18 +157,18 @@
   "top_priority": {
     "priority": 1,
     "area": "الاحتفاظ بالمشاهد (Retention)",
-    "action": "متوسط نسبة المشاهدة الحالي 54.0% (3 حلقة تحت هدف 65.0%). هاد أهم مؤشر بخوارزمية Shorts 2026 -- تحت الهدف يعني الفيديو ما بينتشر لمشاهدين جدد. قوّي الثانيتين الأوليين (hook) بكل حلقة جاية: مفاجأة أو سؤال بصري بأول لقطة، بدون أي تمهيد."
+    "action": "متوسط نسبة المشاهدة الحالي 78.9% (2 حلقة تحت هدف 65.0%). هاد أهم مؤشر بخوارزمية Shorts 2026 -- تحت الهدف يعني الفيديو ما بينتشر لمشاهدين جدد. قوّي الثانيتين الأوليين (hook) بكل حلقة جاية: مفاجأة أو سؤال بصري بأول لقطة، بدون أي تمهيد."
   },
   "playbook": [
     {
       "priority": 1,
       "area": "الاحتفاظ بالمشاهد (Retention)",
-      "action": "متوسط نسبة المشاهدة الحالي 54.0% (3 حلقة تحت هدف 65.0%). هاد أهم مؤشر بخوارزمية Shorts 2026 -- تحت الهدف يعني الفيديو ما بينتشر لمشاهدين جدد. قوّي الثانيتين الأوليين (hook) بكل حلقة جاية: مفاجأة أو سؤال بصري بأول لقطة، بدون أي تمهيد."
+      "action": "متوسط نسبة المشاهدة الحالي 78.9% (2 حلقة تحت هدف 65.0%). هاد أهم مؤشر بخوارزمية Shorts 2026 -- تحت الهدف يعني الفيديو ما بينتشر لمشاهدين جدد. قوّي الثانيتين الأوليين (hook) بكل حلقة جاية: مفاجأة أو سؤال بصري بأول لقطة، بدون أي تمهيد."
     },
     {
       "priority": 2,
       "area": "النشر المتقاطع (تيك توك / انستغرام)",
-      "action": "7 حلقة منشورة على يوتيوب بس ما انسحبت لتيك توك/انستغرام بعد (مشاهدات مجانية ضايعة). شغّل auto_fetch_and_push خطوة تحضير social_ready، وسحبهم لطابور Buffer."
+      "action": "8 حلقة منشورة على يوتيوب بس ما انسحبت لتيك توك/انستغرام بعد (مشاهدات مجانية ضايعة). شغّل auto_fetch_and_push خطوة تحضير social_ready، وسحبهم لطابور Buffer."
     },
     {
       "priority": 3,
@@ -164,7 +183,7 @@
     {
       "priority": 5,
       "area": "العناوين والهاشتاغات",
-      "action": "1 حلقة فيها ملاحظات على العنوان/الهاشتاغات (راجع metadata_audit بالتفصيل). القاعدة: عنوان قصير وواضح، 3-5 هاشتاغات بالوصف (أولها #Shorts)."
+      "action": "2 حلقة فيها ملاحظات على العنوان/الهاشتاغات (راجع metadata_audit بالتفصيل). القاعدة: عنوان قصير وواضح، 3-5 هاشتاغات بالوصف (أولها #Shorts)."
     },
     {
       "priority": 9,
