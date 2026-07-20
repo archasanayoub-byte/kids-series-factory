@@ -266,12 +266,23 @@ def git_sync():
         cwd=ROOT, capture_output=True, text=True,
         encoding="utf-8", errors="replace",
     )
-    if not (status.stdout or "").strip():
+    if (status.stdout or "").strip():
+        _clear_stale_lock()
+        run(["git", "commit", "-m", "auto: add new episode video(s)"])
+    else:
         print("Nothing new to commit.")
-        return
 
+    # IMPORTANT: always attempt a push here, whether or not we just made a new
+    # commit above. A past bug in this script returned early right here
+    # whenever there was "nothing new to commit" -- but that check only looks
+    # at the working tree, not at whether HEAD is already ahead of origin. If
+    # a previous run committed successfully but its push failed (or was never
+    # reached because of this exact bug), the commit sat on this machine
+    # forever, looking identical to "nothing to do" on every future run, and
+    # the video silently never went out. `git push` is always safe to run even
+    # when there is truly nothing to push -- it just prints "Everything
+    # up-to-date" and exits 0 -- so there is no reason to ever skip it.
     _clear_stale_lock()
-    run(["git", "commit", "-m", "auto: add new episode video(s)"])
     code = run(["git", "push"])
     if code != 0:
         # Most likely cause: origin moved ahead between our pull and our push
@@ -291,8 +302,8 @@ def git_sync():
         code = run(["git", "push"])
     if code == 0:
         print(
-            "\nPushed successfully -- new episodes will publish automatically "
-            "at the next scheduled time."
+            "\nUp to date with GitHub -- any new episodes will publish "
+            "automatically at the next scheduled time."
         )
     else:
         print(
