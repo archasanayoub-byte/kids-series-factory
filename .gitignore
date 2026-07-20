@@ -3,3 +3,16 @@ client_secret_*.json
 __pycache__/
 *.pyc
 videos/to_upload/pending_downloads.json
+
+# Local-only staging areas managed by scripts/auto_fetch_and_push.py --
+# intentionally never pushed to GitHub (large video archive + Buffer
+# posting packages + local-only state files).
+videos/archive/
+videos/social_ready/
+videos/social_test/
+videos/social_state.json
+videos/story_arc_state.json
+
+# Leftover local secrets/test files that should never be committed.
+scripts/buffer_api_key.txt
+scripts/_sync_test.txt
