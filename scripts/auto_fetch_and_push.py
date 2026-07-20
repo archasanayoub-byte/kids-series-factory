@@ -16,9 +16,11 @@ git commands by hand:
      never pushed to GitHub -- used later to stitch a long-form compilation
      video out of the daily clips), then clears the pending list so nothing
      downloads twice.
-  3. Commits and pushes any changes in the project folder to GitHub, so the
-     GitHub Actions publishing schedule picks up the new episodes
-     automatically at the next scheduled time.
+  3. Commits and pushes changes to GitHub -- but ONLY inside videos/to_upload,
+     videos/uploaded, and uploaded_manifest.json. Deliberately never a blanket
+     "git add ." (see SYNC_PATHS below for why), so the GitHub Actions
+     publishing schedule picks up new episodes without ever dragging
+     unrelated local files along for the ride.
   4. Builds a ready-to-post package for TikTok/Instagram (free-plan Buffer
      workflow) for every episode that already finished publishing on
      YouTube: videos/social_ready/<epN>/video.mp4 + caption.txt. This is
@@ -26,7 +28,8 @@ git commands by hand:
      video into Buffer, paste the caption, done in ~30 seconds/episode.
 
 Safe to run even if there's nothing pending -- it will just skip straight to
-step 3 and push whatever local changes exist (or do nothing if none).
+step 3 and push whatever local changes exist in the synced paths (or do
+nothing if none).
 """
 
 import json
@@ -42,6 +45,17 @@ UPLOADED_DIR = ROOT / "videos" / "uploaded"
 SOCIAL_DIR = ROOT / "videos" / "social_ready"
 SOCIAL_STATE_PATH = ROOT / "videos" / "social_state.json"
 PENDING_PATH = DROP_DIR / "pending_downloads.json"
+
+# The ONLY paths this script ever stages/commits/pushes. Deliberately narrow
+# and explicit -- a past version of this script ran a blanket "git add ."
+# and it once swept up a large batch of unrelated local-only project files
+# (docs, coloring-book assets, a whole separate show's bible files, etc.)
+# into a single "add new episode video(s)" commit. That commit then
+# diverged from origin (origin already had its own, different versions of
+# some of those same paths) and broke the next pull with add/add conflicts.
+# Scoping to exactly the folders this script is responsible for makes that
+# class of failure impossible going forward.
+SYNC_PATHS = ["videos/to_upload", "videos/uploaded", "uploaded_manifest.json"]
 
 HEADERS = {
     "User-Agent": (
@@ -224,21 +238,38 @@ def _clear_stale_lock():
 
 def git_sync():
     _clear_stale_lock()
-    run(["git", "pull", "--no-edit"])
+    pull_code = run(["git", "pull", "--no-edit"])
+    if pull_code != 0:
+        # Do NOT continue to add/commit/push on top of a failed pull -- that
+        # is exactly what created a diverged, broken local branch before.
+        # Stop here with a clear message instead of silently pressing on.
+        print(
+            "\ngit pull failed -- stopping here on purpose instead of "
+            "committing on top of an out-of-date branch (that always ends "
+            "in a rejected push, or worse, a messy diverged history). Fix "
+            "whatever the message above says, then just run this script "
+            "again -- nothing has been lost, your downloaded video(s) are "
+            "still sitting safely in videos/to_upload/."
+        )
+        return
+
     print("\n--- preparing TikTok/Instagram (Buffer) packages ---")
     try:
         prepare_social_content()
     except Exception as e:  # noqa: BLE001
         print(f"  (warning: social prep step failed, skipping: {e})")
+
     _clear_stale_lock()
-    run(["git", "add", "."])
+    run(["git", "add", "--"] + SYNC_PATHS)
     status = subprocess.run(
-        ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True,
+        ["git", "status", "--porcelain", "--"] + SYNC_PATHS,
+        cwd=ROOT, capture_output=True, text=True,
         encoding="utf-8", errors="replace",
     )
     if not (status.stdout or "").strip():
         print("Nothing new to commit.")
         return
+
     _clear_stale_lock()
     run(["git", "commit", "-m", "auto: add new episode video(s)"])
     code = run(["git", "push"])
@@ -248,7 +279,14 @@ def git_sync():
         # more and retry the push automatically instead of just giving up.
         print("\ngit push failed -- retrying once after a fresh pull...")
         _clear_stale_lock()
-        run(["git", "pull", "--no-edit"])
+        retry_pull_code = run(["git", "pull", "--no-edit"])
+        if retry_pull_code != 0:
+            print(
+                "\ngit pull retry also failed -- a human needs to look at "
+                "the repo state (see messages above). Your new commit is "
+                "still safe locally, nothing is lost."
+            )
+            return
         _clear_stale_lock()
         code = run(["git", "push"])
     if code == 0:
