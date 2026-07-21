@@ -29,7 +29,7 @@ means publishing no longer depends on the user's own PC being on or running
 run_daily_publish.bat: generation (scheduled task) -> queue file (committed
 via repo) -> download + publish (GitHub Actions, fully cloud-side).
 
-Before upload, two ffmpeg passes are applied (each fails gracefully -- if
+Before upload, three ffmpeg passes are applied (each fails gracefully -- if
 ffmpeg or the relevant asset is missing, the video is published as-is rather
 than blocking the run):
   1. add_subscribe_overlay -- burns a "subscribe to the channel" banner
@@ -38,6 +38,21 @@ than blocking the run):
      (assets/theme_music.mp3) under the video's existing native audio at
      reduced volume (25%), looped/trimmed to match the episode's length, so
      every published episode carries the same audio signature.
+  3. add_next_episode_card -- burns a full-screen "watch more episodes"
+     outro card (Bobo & Festuk waving + Arabic CTA) into the final ~1.6
+     seconds of the video. Added 22 July 2026 as the compliant substitute
+     for a YouTube end screen: end screens are unavailable here for TWO
+     independent reasons -- (a) this channel publishes exclusively to
+     YouTube Shorts, and Shorts never support end screens/cards regardless
+     of audience setting or video length, and (b) every video is correctly
+     marked "made for kids" (required -- this channel is clearly directed
+     at children), and Made for Kids content has end screens/cards disabled
+     by YouTube policy even on regular long-form videos. Baking a card
+     directly into the pixels sidesteps both restrictions since it's just
+     video content, not a YouTube UI feature -- it isn't clickable, but it's
+     the closest thing to "suggest another episode at the end" that YouTube
+     allows for this channel. See ensure_next_episode_overlay() for how the
+     card image itself gets onto disk.
 
 After a successful upload:
     - the video + thumbnail are deleted (keeps the git repo light -- video
@@ -73,6 +88,19 @@ MANIFEST_PATH = Path("uploaded_manifest.json")
 OVERLAY_PATH = Path("assets/subscribe_overlay.png")
 MUSIC_PATH = Path("assets/theme_music.mp3")
 PENDING_DOWNLOADS_PATH = DROP_DIR / "pending_downloads.json"
+
+NEXT_EP_OVERLAY_PATH = Path("assets/next_episode_overlay.png")
+# One-time source for the outro-card image above (Bobo & Festuk waving, with
+# an Arabic "تابعونا لمزيد من الحلقات" call-to-action banner), generated via
+# Higgsfield nano_banana on 22 July 2026. ensure_next_episode_overlay() below
+# downloads it into assets/ the first time this script runs after it was
+# generated, then every future run reuses the local copy -- same pattern as
+# fetch_pending_downloads() above, needed because this repo's own automation
+# can't reach the Higgsfield CDN directly, only the GitHub Actions runner can.
+NEXT_EP_OVERLAY_URL = (
+    "https://d8j0ntlcm91z4.cloudfront.net/user_3GM6oV3kftWV6OyqqZLik3rwgcQ/"
+    "hf_20260721_211714_df307357-7d2b-4189-9ee4-bc2e0777a1d5.png"
+)
 
 
 class Args:
@@ -141,6 +169,83 @@ def fetch_pending_downloads():
     PENDING_DOWNLOADS_PATH.write_text(json.dumps(remaining, indent=2))
     if remaining:
         print(f"{len(remaining)} queued download(s) still pending (will retry next run).")
+
+
+def ensure_next_episode_overlay():
+    """Download the reusable outro-card image (see NEXT_EP_OVERLAY_URL) into
+    assets/ the first time it's needed, then leave it alone on every later
+    run. Never blocks publishing -- if the download fails, add_next_episode_card()
+    just skips the card that run and this function retries on the next one."""
+    if NEXT_EP_OVERLAY_PATH.exists():
+        return
+    try:
+        NEXT_EP_OVERLAY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        req = urllib.request.Request(NEXT_EP_OVERLAY_URL, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=60) as resp, open(NEXT_EP_OVERLAY_PATH, "wb") as f:
+            shutil.copyfileobj(resp, f)
+        print(f"Downloaded next-episode outro card to {NEXT_EP_OVERLAY_PATH}.")
+    except Exception as e:
+        print(f"Could not download next-episode overlay ({e}), will retry next run.")
+
+
+def _probe_duration_seconds(video_path: Path):
+    """Return the video's duration in seconds via ffprobe, or None if it
+    can't be determined (missing ffprobe, unreadable file, etc.)."""
+    if shutil.which("ffprobe") is None:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(video_path),
+            ],
+            capture_output=True, text=True, check=True,
+        )
+        return float(result.stdout.strip())
+    except Exception:
+        return None
+
+
+def add_next_episode_card(video_path: Path) -> Path:
+    """Burn the outro card (see NEXT_EP_OVERLAY_PATH) full-screen into the
+    final ~1.6 seconds of the video -- the compliant substitute for a
+    YouTube end screen (see the module docstring for why an actual end
+    screen isn't possible on this channel). Returns the path to the
+    overlaid copy, or the original path unchanged if the asset / ffmpeg /
+    ffprobe aren't available, or the clip is too short to safely fit the
+    card (never blocks publishing)."""
+    if not NEXT_EP_OVERLAY_PATH.exists():
+        print(f"No next-episode overlay at {NEXT_EP_OVERLAY_PATH}, publishing without it.")
+        return video_path
+    if shutil.which("ffmpeg") is None:
+        print("ffmpeg not found on PATH, publishing without next-episode card.")
+        return video_path
+
+    duration = _probe_duration_seconds(video_path)
+    if duration is None or duration <= 3:
+        print("Could not read video duration (or clip too short), skipping next-episode card.")
+        return video_path
+
+    card_start = max(duration - 1.6, 0)
+    out_path = video_path.with_name(video_path.stem + "_next" + video_path.suffix)
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(video_path),
+        "-i", str(NEXT_EP_OVERLAY_PATH),
+        "-filter_complex",
+        f"[1:v]scale=720:1280[card];[0:v][card] overlay=0:0:enable='gte(t,{card_start})'",
+        "-c:a", "copy",
+        str(out_path),
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        stderr_tail = e.stderr[-500:] if e.stderr else e
+        print(f"ffmpeg next-episode card failed ({stderr_tail}), publishing without it.")
+        return video_path
+    return out_path
 
 
 def add_subscribe_overlay(video_path: Path) -> Path:
@@ -220,6 +325,7 @@ def save_manifest(manifest: dict):
 
 def main():
     fetch_pending_downloads()
+    ensure_next_episode_overlay()
 
     if not DROP_DIR.exists():
         print(f"No drop folder at {DROP_DIR}, nothing to do.")
@@ -268,11 +374,13 @@ def main():
 
         meta = json.loads(meta_path.read_text())
 
-        # Apply overlay then theme music, in two ffmpeg passes; each is a
-        # no-op fallback to its input path if the asset/ffmpeg isn't available.
+        # Apply overlay, then theme music, then the next-episode outro card,
+        # in three ffmpeg passes; each is a no-op fallback to its input path
+        # if the asset/ffmpeg isn't available.
         overlay_path = add_subscribe_overlay(video_path)
-        upload_path = add_theme_music(overlay_path)
-        temp_paths = [p for p in (overlay_path, upload_path) if p != video_path]
+        music_path = add_theme_music(overlay_path)
+        upload_path = add_next_episode_card(music_path)
+        temp_paths = [p for p in (overlay_path, music_path, upload_path) if p != video_path]
 
         args = Args(upload_path, meta, title_fallback=video_path.stem)
 
